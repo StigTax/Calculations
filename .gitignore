@@ -1,0 +1,8 @@
+__pycache__
+.mypy_cache
+.vscode
+
+venv
+
+data/insulation.db
+ventilated_fasade.code-workspace

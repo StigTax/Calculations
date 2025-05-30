@@ -1,0 +1,47 @@
+[
+    {
+        "product_code": "68258",
+        "material_type": "Минеральная теплоизоляция на основе кварца.",
+        "construction": "Вентилируемые фасады",
+        "product_name (EN)": "Vetonit VentFacade-Bottom-150/610x1170/Y",
+        "product_name (RU)": "Vetonit ВентФасад-Низ-150/610x1170/E",
+        "volume (pcs), m3": "0.107",
+        "overall dimensions (pcs), L*W*H mm": "1170*610*150",
+        "length (pcs), mm": "1170",
+        "width (pcs), mm": "610",
+        "height/thickness (pcs), mm": "150",
+        "λd, W/m*K": "0.034",
+        "λа, W/m*K": "0.037",
+        "λb, W/m*K": "0.041"
+    },
+    {
+        "product_code": "68247",
+        "material_type": "Минеральная теплоизоляция на основе кварца.",
+        "construction": "Вентилируемые фасады",
+        "product_name (EN)": "Vetonit VentFacade-Bottom-50/610x1170/Y",
+        "product_name (RU)": "Vetonit ВентФасад-Низ-50/610x1170/Е",
+        "volume (pcs), m3": "0.036",
+        "overall dimensions (pcs), L*W*H mm": "1170*610*50",
+        "length (pcs), mm": "1170",
+        "width (pcs), mm": "610",
+        "height/thickness (pcs), mm": "50",
+        "λd, W/m*K": "0.034",
+        "λа, W/m*K": "0.037",
+        "λb, W/m*K": "0.041"
+    },
+    {
+        "product_code": "68460",
+        "material_type": "Минеральная теплоизоляция на основе кварца.",
+        "construction": "Вентилируемые фасады",
+        "product_name (EN)": "VentFacade-Bottom-100/610x1170/Y /D",
+        "product_name (RU)": "Vetonit ВентФасад-Низ-100/610x1170/E /T",
+        "volume (pcs), m3": "0.071",
+        "overall dimensions (pcs), L*W*H mm": "1170*610*100",
+        "length (pcs), mm": "1170",
+        "width (pcs), mm": "610",
+        "height/thickness (pcs), mm": "100",
+        "λd, W/m*K": "0.034",
+        "λа, W/m*K": "0.037",
+        "λb, W/m*K": "0.041"
+    }
+]
