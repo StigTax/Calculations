@@ -3,7 +3,7 @@ import json
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import INSUL_DB_NAME, DATA_FILE
 
@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS materials (
 
 
 def transform_item(item):
+    """Трансформирует элемент из JSON в формат для базы данных."""
     return {
         "product_code": item["product_code"],
         "material_type": item["material_type"],
@@ -55,8 +56,8 @@ def initial_db():
 
             if count == 0:
                 if os.path.exists(DATA_FILE):
-                    with open(DATA_FILE, 'r', encoding='utf-8') as data:
-                        data = json.load(data)
+                    with open(DATA_FILE, 'r', encoding='utf-8') as file:
+                        data = json.load(file)
 
                     for raw_item in data:
                         item = transform_item(raw_item)
