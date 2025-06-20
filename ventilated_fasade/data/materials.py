@@ -1,61 +1,70 @@
-import sqlite3
-import os
-import sys
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import create_engine
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from .models import Product, ConstructionType, MaterialType, Size, Thickness
 
-from config import INSUL_DB_NAME
+from .models import Product
 
-
-__all__ = [
-    "get_all_materials",
-    "get_material_by_code",
-    "get_materials_by_ru_name",
-    "get_all_ru_names"
-]
+DB_URL = 'sqlite:///insulation.db'
 
 
-def get_all_materials():
-    """Возвращает все записи из БД."""
-    with sqlite3.connect(INSUL_DB_NAME) as con:
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        cur.execute("SELECT * FROM materials;")
-        rows = cur.fetchall()
-        return [dict(row) for row in rows]
+class GetInsulationMaterials:
+    """Класс для получения материалов из базы данных."""
 
+    def __init__(self):
+        self.engine = create_engine(DB_URL)
+        self.Session = sessionmaker(bind=self.engine)
 
-def get_material_by_code(product_code):
-    """Возвращает запись из БД по product_code."""
-    with sqlite3.connect(INSUL_DB_NAME) as con:
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        cur.execute(
-            "SELECT * FROM materials WHERE product_code = ?;",
-            (product_code,)
-        )
-        row = cur.fetchone()
-        return dict(row) if row else None
+    def get_all_materials(self):
+        """Возвращает все записи из БД."""
+        with self.Session() as session:  # если у вас настроена сессия SQLAlchemy
+            query = session.query(
+                Product.product_code,
+                Product.product_name_ru,
+                Product.volume_m3,
+                ConstructionType.name.label("construction_name"),
+                MaterialType.type.label("material_type_type"),
+                Size.length_mm.label("size_length_mm"),
+                Size.width_mm.label("size_width_mm"),
+                Thickness.thickness_mm.label("thickness_mm"),
+            ).join(ConstructionType, Product.construction_id == ConstructionType.id
+            ).join(MaterialType, Product.material_type_id == MaterialType.id
+            ).join(Size, Product.size_id == Size.id
+            ).join(Thickness, Product.thickness_id == Thickness.id)
 
+            results = []
+            for row in query.all():
+                results.append({
+                    "product_code": row.product_code,
+                    "product_name_ru": row.product_name_ru,
+                    "volume_m3": row.volume_m3,
+                    "construction_name": row.construction_name,
+                    "material_type_type": row.material_type_type,
+                    "size_length_mm": row.size_length_mm,
+                    "size_width_mm": row.size_width_mm,
+                    "thickness_mm": row.thickness_mm,
+                })
+            session.close()
+            return results
 
-def get_materials_by_ru_name(product_name_ru):
-    """Возвращает все записи из БД по названию материала."""
-    with sqlite3.connect(INSUL_DB_NAME) as con:
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        cur.execute(
-            "SELECT * FROM materials WHERE product_name_ru = ?;",
-            (product_name_ru,)
-        )
-        rows = cur.fetchall()
-        return [dict(row) for row in rows]
+    def get_material_by_code(self, product_code):
+        """Возвращает запись из БД по product_code."""
+        with self.Session() as session:
+            product = session.query(Product).filter_by(
+                product_code=product_code
+            ).first()
+            return product.to_dict() if product else None
 
+    def get_materials_by_ru_name(self, product_name_ru):
+        """Возвращает все записи из БД по названию материала."""
+        with self.Session() as session:
+            products = session.query(Product).filter_by(
+                product_name_ru=product_name_ru
+            ).all()
+            return [product.to_dict() for product in products]
 
-def get_all_ru_names():
-    """Возвращает все уникальные русские названия материалов."""
-    with sqlite3.connect(INSUL_DB_NAME) as con:
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        cur.execute("SELECT DISTINCT product_name_ru FROM materials;")
-        rows = cur.fetchall()
-        return [row["product_name_ru"] for row in rows]
+    def get_all_ru_names(self):
+        """Возвращает все уникальные русские названия материалов."""
+        with self.Session() as session:
+            ru_names = session.query(Product.product_name_ru).distinct().all()
+            return [name[0] for name in ru_names]
