@@ -63,6 +63,8 @@ class Product(Base):
 
     construction = relationship("ConstructionType", back_populates="products")
     material_type = relationship("MaterialType", back_populates="products")
+    size = relationship('Size')
+    thickness = relationship('Thickness')
 
     def to_dict(self):
         return {

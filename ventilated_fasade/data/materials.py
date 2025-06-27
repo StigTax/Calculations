@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from sqlalchemy import create_engine
 
 from .models import Product, ConstructionType, MaterialType, Size, Thickness
@@ -17,7 +17,7 @@ class GetInsulationMaterials:
 
     def get_all_materials(self):
         """Возвращает все записи из БД."""
-        with self.Session() as session:  # если у вас настроена сессия SQLAlchemy
+        with self.Session() as session:
             query = session.query(
                 Product.product_code,
                 Product.product_name_ru,
@@ -27,10 +27,14 @@ class GetInsulationMaterials:
                 Size.length_mm.label("size_length_mm"),
                 Size.width_mm.label("size_width_mm"),
                 Thickness.thickness_mm.label("thickness_mm"),
-            ).join(ConstructionType, Product.construction_id == ConstructionType.id
-            ).join(MaterialType, Product.material_type_id == MaterialType.id
-            ).join(Size, Product.size_id == Size.id
-            ).join(Thickness, Product.thickness_id == Thickness.id)
+            ).join(
+                ConstructionType, Product.construction_id == ConstructionType.id
+                ).join(
+                    MaterialType, Product.material_type_id == MaterialType.id
+                ).join(
+                    Size, Product.size_id == Size.id
+                ).join(
+                    Thickness, Product.thickness_id == Thickness.id)
 
             results = []
             for row in query.all():
@@ -58,10 +62,15 @@ class GetInsulationMaterials:
     def get_materials_by_ru_name(self, product_name_ru):
         """Возвращает все записи из БД по названию материала."""
         with self.Session() as session:
-            products = session.query(Product).filter_by(
+            products = session.query(Product).options(
+                joinedload(Product.size),
+                joinedload(Product.thickness),
+                joinedload(Product.construction),
+                joinedload(Product.material_type),
+            ).filter_by(
                 product_name_ru=product_name_ru
             ).all()
-            return [product.to_dict() for product in products]
+            return products
 
     def get_all_ru_names(self):
         """Возвращает все уникальные русские названия материалов."""

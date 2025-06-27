@@ -28,7 +28,6 @@ class InsulationCalculatorApp(tk.Tk):
             self.materials_list = materials.get_all_ru_names()
             self.materials_data = materials.get_all_materials()
             logger.info(f"Загружены материалы: {self.materials_list}")
-            logger.info(f"Загружены материалы: {self.materials_data}")
         except Exception as e:
             logger.error(f"Не удалось загрузить материалы: {e}", exc_info=True)
             messagebox.showerror(
@@ -70,16 +69,56 @@ class InsulationCalculatorApp(tk.Tk):
         self.create_materials_tab()
 
     def create_calc_tab(self):
-
-        material_label = ttk.Label(self.calc_frame, text="Выберите материал:")
-        material_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
-
+        """Создает вкладку с интерфейсом калькулятора."""
+        # Основной фрейм разделен на 2 колонки: левая (элементы управления) и правая (таблица)
+        self.calc_frame.grid_columnconfigure(0, weight=1)  # Левая колонка (элементы)
+        self.calc_frame.grid_columnconfigure(2, weight=3)  # Правая колонка (таблица)
+        
+        # Создаем отдельный фрейм для левой части (элементов управления)
+        left_frame = ttk.Frame(self.calc_frame)
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
+        
+        # Настройка колонок в левом фрейме
+        left_frame.grid_columnconfigure(0, weight=1)  # Колонка для labels
+        left_frame.grid_columnconfigure(1, weight=1)  # Колонка для полей ввода
+        
+        # Переносим все элементы управления в left_frame
+        # Внутренний слой
+        material_label_inner_layers = ttk.Label(
+            left_frame,
+            text="Выберите материал для внутреннего слоя:"
+        )
+        material_label_inner_layers.grid(
+            row=0,
+            column=0,
+            padx=10,
+            pady=5,
+            sticky="w"
+        )
+        
         self.material_cb = ttk.Combobox(
-            self.calc_frame, values=self.materials_list, state="readonly")
-        self.material_cb.grid(row=0, column=1, padx=10, pady=5, sticky="ew")
+            left_frame, values=self.materials_list, state="readonly")
+        self.material_cb.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
         if self.materials_list:
             self.material_cb.set(self.materials_list[0])
+        
+        # Внешний слой
+        material_label_outer_layer = ttk.Label(
+            left_frame,
+            text="Выберите материал для внешнего слоя:"
+        )
+        material_label_outer_layer.grid(
+            row=2, column=0, padx=10, pady=5, sticky="w"
+        )
 
+        self.material_cb_outer = ttk.Combobox(
+            left_frame, values=self.materials_list, state="readonly"
+        )
+        self.material_cb_outer.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
+        if self.materials_list:
+            self.material_cb_outer.set(self.materials_list[0])
+
+        # Поля ввода
         self.entries = {}
         fields = [
             ("Площадь, м²", "area_m2"),
@@ -88,54 +127,57 @@ class InsulationCalculatorApp(tk.Tk):
             ("Периметр, м", "perimeter_m"),
         ]
 
-        for ind, (label_text, attr_name) in enumerate(fields, start=1):
-            label = ttk.Label(self.calc_frame, text=label_text)
-            label.grid(row=ind, column=0, padx=10, pady=5, sticky='w')
+        for row, (label_text, attr_name) in enumerate(fields, start=4):
+            label = ttk.Label(left_frame, text=label_text)
+            label.grid(row=row, column=0, padx=10, pady=5, sticky='w')
 
-            entry = ttk.Entry(self.calc_frame)
-            entry.grid(row=ind, column=1, padx=10, pady=5, sticky='ew')
+            entry = ttk.Entry(left_frame)
+            entry.grid(row=row, column=1, padx=10, pady=5, sticky='ew')
             self.entries[attr_name] = entry
 
-        calc_btn = ttk.Button(
-            self.calc_frame, text='Рассчитать', command=self.calculate)
-        calc_btn.grid(row=len(fields) + 1, column=0, columnspan=2, pady=10)
+        # Кнопки
+        buttons_frame = ttk.Frame(left_frame)
+        buttons_frame.grid(
+            row=len(fields)+5,
+            column=0, columnspan=2,
+            pady=10
+        )
 
-        self.result_text = tk.Text(self.calc_frame, height=10, width=50)
-        self.result_text.grid(
-            row=len(fields) + 2,
-            column=0,
-            columnspan=2,
+        calc_btn = ttk.Button(
+            buttons_frame, text='Рассчитать', command=self.calculate)
+        calc_btn.pack(side='left', padx=5)
+
+        clear_btn = ttk.Button(
+            buttons_frame, text='Очистить', command=self.clear_fields)
+        clear_btn.pack(side='left', padx=5)
+
+        # Правая часть - таблица результатов
+        self.result_table = ttk.Treeview(
+            self.calc_frame,
+            columns=("param", "value"),
+            show="headings",
+            height=20
+        )
+        self.result_table.heading("param", text='Параметр')
+        self.result_table.heading("value", text='Значение')
+        self.result_table.column("param", anchor="w", width=200)
+        self.result_table.column("value", anchor="center", width=200)
+        self.result_table.grid(
+            row=0,
+            column=2,
+            rowspan=20,
             padx=10,
             pady=5,
             sticky='nsew'
         )
-        self.result_text.config(state='disabled')
 
-        self.calc_frame.grid_columnconfigure(1, weight=1)
-        self.calc_frame.grid_rowconfigure(len(fields) + 2, weight=1)
+        # Настройка весов строк в основном фрейме
+        self.calc_frame.grid_rowconfigure(0, weight=1)
 
     def create_materials_tab(self):
-        filter_frame = ttk.Frame(self.materials_frame)
-        filter_frame.pack(fill='x', padx=10, pady=5)
-        self.filters = {}
-        filter_labels = {
-            "product_name_ru": "Название",
-            "material_type_type": "Тип материала",
-            "size_length_mm": "Длина (мм)",
-            "size_width_mm": "Ширина (мм)",
-            "thickness_mm": "Толщина (мм)"
-        }
-        col = 0
-        for key, label_text in filter_labels.items():
-            lbl = ttk.Label(filter_frame, text=label_text)
-            lbl.grid(row=0, column=col, padx=5, pady=5)
-            ent = ttk.Entry(filter_frame, width=15)
-            ent.grid(row=1, column=col, padx=5, pady=2)
-            ent.bind("<Return>", self.on_filter_change)
-            self.filters[key] = ent
-            col += 1
-
+        """Создает вкладку с таблицей материалов и фильтрами."""
         columns = (
+            "index",
             "product_code",
             "product_name_ru",
             "volume_m3",
@@ -145,31 +187,60 @@ class InsulationCalculatorApp(tk.Tk):
             "size_width_mm",
             "thickness_mm"
         )
+        container = ttk.Frame(self.materials_frame)
+        container.pack(fill='both', expand=True, padx=10, pady=10)
+
+        self.sort_descending = {col: False for col in columns}
+
         self.materials_tree = ttk.Treeview(
-            self.materials_frame,
+            container,
             columns=columns,
             show="headings"
         )
 
-        # Заголовки колонок
+        self.materials_tree.heading('index', text='№', anchor='center')
         self.materials_tree.heading(
-            "product_code", text="Код продукта", command=lambda: self.sort_tree("product_code", False))
-        self.materials_tree.heading("product_name_ru", text="Название (RU)",
-                                    command=lambda: self.sort_tree("product_name_ru", False))
+            'product_code',
+            text='Код продукта',
+            command=lambda: self.sort_tree('product_code', False)
+        )
         self.materials_tree.heading(
-            "volume_m3", text="Объем, м³", command=lambda: self.sort_tree("volume_m3", True))
-        self.materials_tree.heading("construction_name", text="Для конструкций",
-                                    command=lambda: self.sort_tree("construction_name", False))
-        self.materials_tree.heading("material_type_name", text="Тип материала",
-                            command=lambda: self.sort_tree("material_type_type", False))
+            "product_name_ru",
+            text="Название (RU)",
+            command=lambda: self.sort_tree("product_name_ru", False)
+        )
         self.materials_tree.heading(
-            "size_length_mm", text="Длина (мм)", command=lambda: self.sort_tree("size_length_mm", True))
+            "volume_m3",
+            text="Объем, м³",
+            command=lambda: self.sort_tree("volume_m3", True)
+        )
         self.materials_tree.heading(
-            "size_width_mm", text="Ширина (мм)", command=lambda: self.sort_tree("size_width_mm", True))
+            "construction_name",
+            text="Для конструкций",
+            command=lambda: self.sort_tree("construction_name", False)
+        )
         self.materials_tree.heading(
-            "thickness_mm", text="Толщина (мм)", command=lambda: self.sort_tree("thickness_mm", True))
-
-        # Можно настроить ширину колонок, например так
+            "material_type_name",
+            text="Тип материала",
+            command=lambda: self.sort_tree(
+                "material_type_name", False)  # Fixed typo here
+        )
+        self.materials_tree.heading(
+            "size_length_mm",
+            text="Длина (мм)",
+            command=lambda: self.sort_tree("size_length_mm", True)
+        )
+        self.materials_tree.heading(
+            "size_width_mm",
+            text="Ширина (мм)",
+            command=lambda: self.sort_tree("size_width_mm", True)
+        )
+        self.materials_tree.heading(
+            "thickness_mm",
+            text="Толщина (мм)",
+            command=lambda: self.sort_tree("thickness_mm", True)
+        )
+        self.materials_tree.column('index', width=40, anchor='center')
         self.materials_tree.column("product_code", width=100, anchor="center")
         self.materials_tree.column("product_name_ru", width=180, anchor="w")
         self.materials_tree.column("volume_m3", width=80, anchor="center")
@@ -181,20 +252,33 @@ class InsulationCalculatorApp(tk.Tk):
         self.materials_tree.column("size_width_mm", width=80, anchor="center")
         self.materials_tree.column("thickness_mm", width=80, anchor="center")
 
-        self.materials_tree.pack(fill='both', expand=True, padx=10, pady=10)
+        y_scrollbar = ttk.Scrollbar(
+            container,
+            orient='vertical',
+            command=self.materials_tree.yview
+        )
+        self.materials_tree.configure(yscrollcommand=y_scrollbar.set)
+
+        self.materials_tree.grid(row=0, column=0, sticky='nsew')
+        y_scrollbar.grid(row=0, column=1, sticky='ns')
+
+        container.grid_rowconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
 
         self.load_materials_data(self.materials_data)
 
         self.sprt_descending = {}
 
     def load_materials_data(self, data):
+        """Загружает и отображает список материалов в таблице."""
         for item in self.materials_tree.get_children():
             self.materials_tree.delete(item)
-        for item in data:
+        for idx, item in enumerate(data, start=1):
             self.materials_tree.insert(
                 "",
                 "end",
                 values=(
+                    idx,
                     item.get("product_code", ""),
                     item.get("product_name_ru", ""),
                     item.get("volume_m3", 0),
@@ -206,21 +290,10 @@ class InsulationCalculatorApp(tk.Tk):
                 )
             )
 
-    def on_filter_change(self, event=None):
-        filtered = self.materials_data
-        for key, entry in self.filters.items():
-            value = entry.get().strip().lower()
-            if value:
-                filtered = [
-                    item for item in filtered
-                    if value in str(item.get(key, "")).lower()
-                ]
-        self.filtered_materials = filtered
-        self.load_materials_data(self.filtered_materials)
-
     def sort_tree(self, column, is_numeric):
+        """Сортирует таблицу материалов по выбранному столбцу."""
         descending = self.sprt_descending.get(column, False)
-        data = getattr(self, 'filtered_materials', self.materials_data).copy()
+        data = self.materials_data.copy()
 
         def sort_key(item):
             value = item[column]
@@ -232,19 +305,22 @@ class InsulationCalculatorApp(tk.Tk):
             return str(value).lower()
 
         data.sort(key=sort_key, reverse=descending)
-        self.filtered_materials = data
-        self.load_materials_data(self.filtered_materials)
+        self.load_materials_data(data)
         self.sprt_descending[column] = not descending
 
     def calculate(self):
         """Выполняет расчет теплоизоляции на основе введенных данных."""
         try:
-            selected_material = self.material_cb.get()
-            if not selected_material:
+            # Получаем выбранные материалы
+            inner_material = self.material_cb.get()
+            outer_material = self.material_cb_outer.get() if hasattr(self, 'material_cb_outer') else None
+
+            if not inner_material:
                 logger.warning("Не выбран материал для расчета")
-                messagebox.showerror("Ошибка", "Выберите материал")
+                messagebox.showerror("Ошибка", "Выберите материал внутреннего слоя")
                 return
 
+            # Проверяем поля ввода
             values = {}
             for key, entry in self.entries.items():
                 value = entry.get().strip()
@@ -254,6 +330,7 @@ class InsulationCalculatorApp(tk.Tk):
                     return
                 values[key] = value
 
+            # Валидация входных данных
             area = InputValidator.validate_positive_number(
                 values["area_m2"], "Площадь"
             )
@@ -271,8 +348,10 @@ class InsulationCalculatorApp(tk.Tk):
                 values["perimeter_m"], "Периметр"
             )
 
+            # Создаем калькулятор с правильными параметрами
             self.calc = InsulationCalculator(
-                materials_ru_name=selected_material,
+                inner_material_ru_name=inner_material,
+                outer_material_ru_name=outer_material if outer_material else None,
                 area_m2=area,
                 building_height_m=height,
                 count_corner=corners,
@@ -281,14 +360,18 @@ class InsulationCalculatorApp(tk.Tk):
 
             self.result = self.calc.summary()
             logger.info(
-                f"Выполнен расчет: материал={selected_material},"
-                f" результат={self.result}"
+                f"Выполнен расчет: внутренний материал={inner_material}, "
+                f"внешний материал={outer_material}, результат={self.result}"
             )
 
-            report_text = '\n'.join(
-                f"{key}: {val}" for key, val in self.result.items()
-            )
-            self.display_result(report_text)
+            self.display_result(self.result)
+
+        except ValueError as e:
+            logger.error(f"Ошибка валидации: {str(e)}")
+            messagebox.showerror("Ошибка ввода", str(e))
+        except Exception as e:
+            logger.error(f"Ошибка при расчете: {str(e)}", exc_info=True)
+            messagebox.showerror("Ошибка расчета", f"Произошла ошибка: {str(e)}")
 
         except ValidationError as e:
             logger.warning(f"Ошибка валидации: {e}")
@@ -297,12 +380,19 @@ class InsulationCalculatorApp(tk.Tk):
             logger.error(f"Ошибка при расчёте: {e}", exc_info=True)
             messagebox.showerror("Ошибка", str(e))
 
-    def display_result(self, text):
+    def clear_fields(self):
+        """Очищает все поля ввода и таблицу с результатами."""
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
+        self.result_table.delete(*self.result_table.get_children())
+
+    def display_result(self, result_dict):
         """Отображает результаты расчета в текстовом поле."""
-        self.result_text.config(state='normal')
-        self.result_text.delete("1.0", tk.END)
-        self.result_text.insert(tk.END, text)
-        self.result_text.config(state='disabled')
+        for item in self.result_table.get_children():
+            self.result_table.delete(item)
+
+        for key, val in result_dict.items():
+            self.result_table.insert('', 'end', values=(key, val))
 
     def save_excel(self):
         """Сохраняет результаты расчета в Excel файл."""

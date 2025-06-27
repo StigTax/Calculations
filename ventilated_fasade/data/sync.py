@@ -112,8 +112,8 @@ def sync_db_with_fixture(fixture_path, db_url):
                     f'Продукт: {item}'
                 )
                 continue
-            fixture_codes.add(item['product_code']) 
-            
+            fixture_codes.add(item['product_code'])
+
             product_data = {
                 "product_code": item["product_code"],
                 "product_name_ru": item["product_name_ru"],
