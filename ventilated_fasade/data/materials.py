@@ -3,8 +3,6 @@ from sqlalchemy import create_engine
 
 from .models import Product, ConstructionType, MaterialType, Size, Thickness
 
-from .models import Product
-
 DB_URL = 'sqlite:///insulation.db'
 
 
@@ -29,35 +27,24 @@ class GetInsulationMaterials:
                 Thickness.thickness_mm.label("thickness_mm"),
             ).join(
                 ConstructionType, Product.construction_id == ConstructionType.id
-                ).join(
-                    MaterialType, Product.material_type_id == MaterialType.id
-                ).join(
-                    Size, Product.size_id == Size.id
-                ).join(
-                    Thickness, Product.thickness_id == Thickness.id)
+            ).join(
+                MaterialType, Product.material_type_id == MaterialType.id
+            ).join(
+                Size, Product.size_id == Size.id
+            ).join(
+                Thickness, Product.thickness_id == Thickness.id)
 
-            results = []
-            for row in query.all():
-                results.append({
-                    "product_code": row.product_code,
-                    "product_name_ru": row.product_name_ru,
-                    "volume_m3": row.volume_m3,
-                    "construction_name": row.construction_name,
-                    "material_type_type": row.material_type_type,
-                    "size_length_mm": row.size_length_mm,
-                    "size_width_mm": row.size_width_mm,
-                    "thickness_mm": row.thickness_mm,
-                })
-            session.close()
+            results = [{
+                "product_code": row.product_code,
+                "product_name_ru": row.product_name_ru,
+                "volume_m3": row.volume_m3,
+                "construction_name": row.construction_name,
+                "material_type_type": row.material_type_type,
+                "size_length_mm": row.size_length_mm,
+                "size_width_mm": row.size_width_mm,
+                "thickness_mm": row.thickness_mm,
+            } for row in query.all()]
             return results
-
-    def get_material_by_code(self, product_code):
-        """Возвращает запись из БД по product_code."""
-        with self.Session() as session:
-            product = session.query(Product).filter_by(
-                product_code=product_code
-            ).first()
-            return product.to_dict() if product else None
 
     def get_materials_by_ru_name(self, product_name_ru):
         """Возвращает все записи из БД по названию материала."""

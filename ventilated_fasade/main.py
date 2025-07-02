@@ -1,3 +1,5 @@
+from gui.calc_app import InsulationCalculatorApp
+from data.sync import sync_db_with_fixture
 import sys
 import os
 import logging
@@ -5,9 +7,6 @@ import tkinter as tk
 from tkinter import messagebox
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from data.sync import sync_db_with_fixture
-from gui.calc_app import InsulationCalculatorApp
 
 
 REQUIRED_DEPENDENCIES = [

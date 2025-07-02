@@ -36,85 +36,115 @@ class InsulationCalculatorApp(tk.Tk):
             self.materials_data = []
 
         self.result = {}
-        self.create_widgets()
-
-    def create_widgets(self):
-        """Создает виджеты интерфейса приложения."""
-        menubar = Menu(self)
-
-        file_menu = Menu(menubar, tearoff=0)
-        file_menu.add_command(label="Сохранить как Excel",
-                              command=self.save_excel)
-        file_menu.add_command(label="Сохранить как PDF", command=self.save_pdf)
-        file_menu.add_separator()
-        file_menu.add_command(label="Выход", command=self.quit)
-        menubar.add_cascade(label="Файл", menu=file_menu)
-
-        help_menu = Menu(menubar, tearoff=0)
-        help_menu.add_command(label="О программе", command=self.show_about)
-        menubar.add_cascade(label="Справка", menu=help_menu)
-
-        self.config(menu=menubar)
-
+        # Create notebook (tabs)
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True)
 
+        # Create frames for tabs
         self.calc_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.calc_frame, text="Калькулятор")
-
         self.materials_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.materials_frame, text="Материалы")
 
+        # Add tabs to notebook
+        self.notebook.add(self.calc_frame, text='Калькулятор')
+        self.notebook.add(self.materials_frame, text='Материалы')
+
+        # Create widgets for each tab
         self.create_calc_tab()
         self.create_materials_tab()
+
+        # Create menu
+        self.create_menu()
+
+        self.material_columns = (
+            "index",
+            "product_code",
+            "product_name_ru",
+            "volume_m3",
+            "construction_name",
+            "material_type_type",
+            "size_length_mm",
+            "size_width_mm",
+            "thickness_mm"
+        )
 
     def create_calc_tab(self):
         """Создает вкладку с интерфейсом калькулятора."""
         # Основной фрейм разделен на 2 колонки: левая (элементы управления) и правая (таблица)
-        self.calc_frame.grid_columnconfigure(0, weight=1)  # Левая колонка (элементы)
-        self.calc_frame.grid_columnconfigure(2, weight=3)  # Правая колонка (таблица)
-        
+        self.calc_frame.grid_columnconfigure(
+            0, weight=1)  # Левая колонка (элементы)
+        self.calc_frame.grid_columnconfigure(
+            2, weight=3)  # Правая колонка (таблица)
+
         # Создаем отдельный фрейм для левой части (элементов управления)
         left_frame = ttk.Frame(self.calc_frame)
         left_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
-        
+
         # Настройка колонок в левом фрейме
         left_frame.grid_columnconfigure(0, weight=1)  # Колонка для labels
         left_frame.grid_columnconfigure(1, weight=1)  # Колонка для полей ввода
-        
-        # Переносим все элементы управления в left_frame
+
+        # Переменная для хранения выбранного типа системы
+        self.system_type = tk.StringVar(
+            value="mono")  # По умолчанию моносистема
+
+        # Фрейм для радиокнопок
+        system_frame = ttk.LabelFrame(left_frame, text="Тип системы")
+        system_frame.grid(row=0, column=0, columnspan=2,
+                          padx=10, pady=5, sticky="ew")
+
+        mono_radio = ttk.Radiobutton(
+            system_frame,
+            text="Моносистема (один слой)",
+            variable=self.system_type,
+            value="mono",
+            command=self.toggle_material_fields
+        )
+        mono_radio.pack(side="left", padx=5, pady=2)
+
+        double_radio = ttk.Radiobutton(
+            system_frame,
+            text="Двухслойная система",
+            variable=self.system_type,
+            value="double",
+            command=self.toggle_material_fields
+        )
+        double_radio.pack(side="left", padx=5, pady=2)
+
         # Внутренний слой
-        material_label_inner_layers = ttk.Label(
+        self.material_label_inner = ttk.Label(
             left_frame,
             text="Выберите материал для внутреннего слоя:"
         )
-        material_label_inner_layers.grid(
-            row=0,
+        self.material_label_inner.grid(
+            row=1,
             column=0,
             padx=10,
             pady=5,
             sticky="w"
         )
-        
-        self.material_cb = ttk.Combobox(
+
+        self.material_cb_inner = ttk.Combobox(
             left_frame, values=self.materials_list, state="readonly")
-        self.material_cb.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
-        if self.materials_list:
-            self.material_cb.set(self.materials_list[0])
-        
-        # Внешний слой
-        material_label_outer_layer = ttk.Label(
-            left_frame,
-            text="Выберите материал для внешнего слоя:"
+        self.material_cb_inner.grid(
+            row=2, column=0, columnspan=2,
+            padx=10, pady=5, sticky='ew'
         )
-        material_label_outer_layer.grid(
-            row=2, column=0, padx=10, pady=5, sticky="w"
+        if self.materials_list:
+            self.material_cb_inner.set(self.materials_list[0])
+
+        # Внешний слой
+        self.material_label_outer = ttk.Label(
+            left_frame, text="Выберите материал для внешнего слоя:"
+        )
+        self.material_label_outer.grid(
+            row=3, column=0, padx=10, pady=5, sticky="w"
         )
 
         self.material_cb_outer = ttk.Combobox(
             left_frame, values=self.materials_list, state="readonly"
         )
-        self.material_cb_outer.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
+        self.material_cb_outer.grid(
+            row=4, column=0, columnspan=2, padx=10, pady=5, sticky='ew')
         if self.materials_list:
             self.material_cb_outer.set(self.materials_list[0])
 
@@ -127,7 +157,7 @@ class InsulationCalculatorApp(tk.Tk):
             ("Периметр, м", "perimeter_m"),
         ]
 
-        for row, (label_text, attr_name) in enumerate(fields, start=4):
+        for row, (label_text, attr_name) in enumerate(fields, start=5):
             label = ttk.Label(left_frame, text=label_text)
             label.grid(row=row, column=0, padx=10, pady=5, sticky='w')
 
@@ -138,17 +168,20 @@ class InsulationCalculatorApp(tk.Tk):
         # Кнопки
         buttons_frame = ttk.Frame(left_frame)
         buttons_frame.grid(
-            row=len(fields)+5,
+            row=len(fields)+6,
             column=0, columnspan=2,
             pady=10
         )
 
-        calc_btn = ttk.Button(
+        calc_btn = tk.Button(
             buttons_frame, text='Рассчитать', command=self.calculate)
         calc_btn.pack(side='left', padx=5)
 
-        clear_btn = ttk.Button(
-            buttons_frame, text='Очистить', command=self.clear_fields)
+        clear_btn = tk.Button(
+            buttons_frame, text='Очистить', command=self.clear_fields,
+            bg='red', fg='white',
+            activebackground="#a80000", activeforeground='white'
+        )
         clear_btn.pack(side='left', padx=5)
 
         # Правая часть - таблица результатов
@@ -173,6 +206,23 @@ class InsulationCalculatorApp(tk.Tk):
 
         # Настройка весов строк в основном фрейме
         self.calc_frame.grid_rowconfigure(0, weight=1)
+
+        # Изначально скрываем поля для внешнего слоя
+        self.toggle_material_fields()
+
+    def toggle_material_fields(self):
+        """Переключает видимость полей для внешнего слоя в зависимости от выбранного типа системы."""
+        if self.system_type.get() == "mono":
+            # Для моносистемы скрываем внешний слой
+            self.material_cb_outer.grid_remove()
+            # Переименовываем label для внутреннего слоя
+            self.material_label_inner.config(text="Выберите материал:")
+        else:
+            # Для двухслойной системы показываем оба слоя
+            self.material_cb_outer.grid()
+            # Возвращаем стандартное название label
+            self.material_label_inner.config(
+                text="Выберите материал для внутреннего слоя:")
 
     def create_materials_tab(self):
         """Создает вкладку с таблицей материалов и фильтрами."""
@@ -267,8 +317,6 @@ class InsulationCalculatorApp(tk.Tk):
 
         self.load_materials_data(self.materials_data)
 
-        self.sprt_descending = {}
-
     def load_materials_data(self, data):
         """Загружает и отображает список материалов в таблице."""
         for item in self.materials_tree.get_children():
@@ -291,108 +339,152 @@ class InsulationCalculatorApp(tk.Tk):
             )
 
     def sort_tree(self, column, is_numeric):
-        """Сортирует таблицу материалов по выбранному столбцу."""
-        descending = self.sprt_descending.get(column, False)
+        descending = self.sort_descending.get(column, False)
         data = self.materials_data.copy()
 
         def sort_key(item):
-            value = item[column]
+            value = item.get(column)
             if is_numeric:
                 try:
                     return float(value)
                 except (ValueError, TypeError):
                     return float('-inf') if descending else float('inf')
-            return str(value).lower()
+            return str(value).lower() if value else ""
 
         data.sort(key=sort_key, reverse=descending)
+
+        # После сортировки обновляем таблицу
+        self.materials_data = data
+        # Здесь заменяем refresh_table на load_materials_data
         self.load_materials_data(data)
-        self.sprt_descending[column] = not descending
+
+        # Переключаем направление сортировки
+        self.sort_descending[column] = not descending
 
     def calculate(self):
         """Выполняет расчет теплоизоляции на основе введенных данных."""
         try:
+            # Считываем и валидируем значения из полей
+            raw_data = {key: entry.get().strip()
+                        for key, entry in self.entries.items()}
+            validator = InputValidator()
+            validated_data = validator.validate_inputs(raw_data)
+
             # Получаем выбранные материалы
-            inner_material = self.material_cb.get()
-            outer_material = self.material_cb_outer.get() if hasattr(self, 'material_cb_outer') else None
+            inner_material = self.material_cb_inner.get()
+            outer_material = self.material_cb_outer.get(
+            ) if self.system_type.get() == "double" else None
 
-            if not inner_material:
-                logger.warning("Не выбран материал для расчета")
-                messagebox.showerror("Ошибка", "Выберите материал внутреннего слоя")
-                return
-
-            # Проверяем поля ввода
-            values = {}
-            for key, entry in self.entries.items():
-                value = entry.get().strip()
-                if not value:
-                    logger.warning(f"Пустое поле ввода: {key}")
-                    messagebox.showerror("Ошибка", f"Заполните поле '{key}'")
+            # Проверки по выбору материалов
+            if self.system_type.get() == "double":
+                if not outer_material:
+                    messagebox.showerror(
+                        "Ошибка", "Выберите внешний утеплитель.")
                     return
-                values[key] = value
+                if not inner_material:
+                    messagebox.showerror(
+                        "Ошибка", "Выберите внутренний утеплитель.")
+                    return
+            else:
+                if not inner_material:
+                    messagebox.showerror("Ошибка", "Выберите утеплитель.")
+                    return
 
-            # Валидация входных данных
-            area = InputValidator.validate_positive_number(
-                values["area_m2"], "Площадь"
-            )
-            area = InputValidator.validate_area_range(area)
+            # Получаем словарь с данными по материалам
+            material_dict = {m["product_name_ru"]                             : m for m in self.materials_data}
+            inner_data = material_dict.get(inner_material)
+            outer_data = material_dict.get(
+                outer_material) if outer_material else None
 
-            height = InputValidator.validate_positive_number(
-                values["building_height_m"], "Высота здания"
-            )
-            height = InputValidator.validate_height_range(height)
+            if self.system_type.get() == "double":
+                if not inner_data or not outer_data:
+                    raise ValueError("Выбранные материалы не найдены в базе")
+                calc = InsulationCalculator(
+                    outer_material_ru_name=outer_material,
+                    inner_material_ru_name=inner_material,
+                    **validated_data
+                )
+            else:
+                if not inner_data:
+                    raise ValueError("Выбранный материал не найден в базе")
+                calc = InsulationCalculator(
+                    inner_material_ru_name=inner_material,
+                    **validated_data
+                )
 
-            corners = InputValidator.validate_positive_integer(
-                values["count_corner"], "Количество углов"
-            )
-            perimeter = InputValidator.validate_positive_integer(
-                values["perimeter_m"], "Периметр"
-            )
+            result = calc.summary()
 
-            # Создаем калькулятор с правильными параметрами
-            self.calc = InsulationCalculator(
-                inner_material_ru_name=inner_material,
-                outer_material_ru_name=outer_material if outer_material else None,
-                area_m2=area,
-                building_height_m=height,
-                count_corner=corners,
-                perimeter_m=perimeter,
-            )
+            self.result = result
+            self.display_result(result)
 
-            self.result = self.calc.summary()
-            logger.info(
-                f"Выполнен расчет: внутренний материал={inner_material}, "
-                f"внешний материал={outer_material}, результат={self.result}"
-            )
-
-            self.display_result(self.result)
-
-        except ValueError as e:
-            logger.error(f"Ошибка валидации: {str(e)}")
-            messagebox.showerror("Ошибка ввода", str(e))
+        except ValidationError as ve:
+            messagebox.showerror("Ошибка ввода", str(ve))
         except Exception as e:
-            logger.error(f"Ошибка при расчете: {str(e)}", exc_info=True)
-            messagebox.showerror("Ошибка расчета", f"Произошла ошибка: {str(e)}")
+            logger.exception("Ошибка при расчете")
+            messagebox.showerror(
+                "Ошибка", f"Произошла ошибка при расчете:\n{e}")
 
-        except ValidationError as e:
-            logger.warning(f"Ошибка валидации: {e}")
-            messagebox.showerror("Ошибка валидации", str(e))
-        except Exception as e:
-            logger.error(f"Ошибка при расчёте: {e}", exc_info=True)
-            messagebox.showerror("Ошибка", str(e))
-
-    def clear_fields(self):
-        """Очищает все поля ввода и таблицу с результатами."""
-        for entry in self.entries.values():
-            entry.delete(0, tk.END)
+    def display_result(self, result):
+        """Отображает результаты расчета в таблице."""
         self.result_table.delete(*self.result_table.get_children())
 
-    def display_result(self, result_dict):
-        """Отображает результаты расчета в текстовом поле."""
+        self.result_table.insert(
+            "", "end",
+            values=(
+                "Тип системы",
+                "Двухслойная" if result.get(
+                    "system_type") == "double" else "Однослойная"
+            )
+        )
+
+        if "outer_layer" in result and result["outer_layer"]:
+            outer = result["outer_layer"]
+            self.result_table.insert(
+                "", "end", values=("", "--- Наружный слой ---"))
+            self.result_table.insert("", "end", values=(
+                "Материал", outer.get("material", "")))
+            self.result_table.insert("", "end", values=(
+                "Кол-во листов", outer.get("sheets_count", "")))
+            self.result_table.insert("", "end", values=(
+                "Объем, м³", outer.get("volume_m3", "")))
+
+        if "inner_layer" in result and result["inner_layer"]:
+            inner = result["inner_layer"]
+            self.result_table.insert(
+                "", "end", values=("", "--- Внутренний слой ---"))
+            self.result_table.insert("", "end", values=(
+                "Материал", inner.get("material", "")))
+            self.result_table.insert("", "end", values=(
+                "Кол-во листов", inner.get("sheets_count", "")))
+            self.result_table.insert("", "end", values=(
+                "Объем, м³", inner.get("volume_m3", "")))
+
+    def create_menu(self):
+        """Creates the main menu for the application."""
+        menubar = Menu(self)
+
+        # File menu
+        file_menu = Menu(menubar, tearoff=0)
+        file_menu.add_command(label="Сохранить Excel", command=self.save_excel)
+        file_menu.add_command(label="Сохранить PDF", command=self.save_pdf)
+        file_menu.add_separator()
+        file_menu.add_command(label="Выход", command=self.quit)
+        menubar.add_cascade(label="Файл", menu=file_menu)
+
+        # Help menu
+        help_menu = Menu(menubar, tearoff=0)
+        help_menu.add_command(label="О программе", command=self.show_about)
+        menubar.add_cascade(label="Справка", menu=help_menu)
+
+        self.config(menu=menubar)
+
+    def clear_fields(self):
+        """Очищает все поля ввода и таблицу результатов."""
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
         for item in self.result_table.get_children():
             self.result_table.delete(item)
-
-        for key, val in result_dict.items():
-            self.result_table.insert('', 'end', values=(key, val))
+        self.result = {}
 
     def save_excel(self):
         """Сохраняет результаты расчета в Excel файл."""
