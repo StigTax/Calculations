@@ -1,131 +1,148 @@
+from data.models import Product
+from data.materials import GetInsulationMaterials
 import math
 import os
 import sys
 import logging
+from typing import Optional, Tuple
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data import materials
 
 logger = logging.getLogger(__name__)
 
 
 class InsulationCalculator:
-    """Класс для расчета теплоизоляции."""
+    """Калькулятор расчета фасадной теплоизоляции."""
 
     def __init__(
         self,
-        materials_ru_name: str,
-        area_m2: float,
-        building_height_m: float,
-        count_corner: int,
-        perimeter_m: int
+        outer_material_ru_name: str,
+        inner_material_ru_name: Optional[str] = None,
+        area_m2: float = 0,
+        building_height_m: float = 0,
+        count_corner: int = 0,
+        perimeter_m: int = 0,
+        repo: Optional[GetInsulationMaterials] = None
     ):
-        """Инициализация калькулятора теплоизоляции."""
         logger.info("Инициализация InsulationCalculator")
 
-        self.materials_ru_name = materials_ru_name
+        self.outer_material_ru_name = outer_material_ru_name
+        self.inner_material_ru_name = inner_material_ru_name
         self.area_m2 = area_m2
         self.building_height_m = building_height_m
         self.count_corner = count_corner
         self.perimeter_m = perimeter_m
+        self.is_double_layer = inner_material_ru_name is not None
 
         logger.debug(
-            f"Параметры: материал='{materials_ru_name}', "
+            f"Параметры: внешний материал='{outer_material_ru_name}', "
+            f"внутренний материал='{inner_material_ru_name}', "
             f"площадь={area_m2}, высота={building_height_m}, "
             f"углы={count_corner}, периметр={perimeter_m}"
         )
 
-        self.materials_data = (
-            materials.get_materials_by_ru_name(materials_ru_name)
+        repo = repo or GetInsulationMaterials()
+
+        # Основной слой (внешний) обязателен
+        self.outer_product = repo.get_materials_by_ru_name(
+            outer_material_ru_name
         )
+        if not self.outer_product:
+            logger.error(f'Материал "{outer_material_ru_name}" не найден')
+            raise ValueError(f'Материал "{outer_material_ru_name}" не найден')
+        self.outer_product = self.outer_product[0]
 
-        if not self.materials_data:
-            logger.error(
-                f'Материал "{materials_ru_name}" не найден в базе данных'
+        # Внутренний слой (второй) опционален
+        if self.is_double_layer:
+            self.inner_product = repo.get_materials_by_ru_name(
+                inner_material_ru_name
             )
-            raise ValueError(
-                f'Материалы с названием "{materials_ru_name}" '
-                'не найдены в базе данных.'
-            )
+            if not self.inner_product:
+                logger.error(f'Материал "{inner_material_ru_name}" не найден')
+                raise ValueError(f'Материал "{inner_material_ru_name}" не найден')
+            self.inner_product = self.inner_product[0]
 
-    def get_sheet_area(self) -> float:
-        """Расчет площади одного листа материала."""
-        material = self.materials_data[0]
-        length_m = material['length'] / 1000
-        width_m = material['width'] / 1000
-        area_per_sheet = length_m * width_m
-        logger.debug(f"Площадь одного листа: {area_per_sheet:.3f} м²")
-        return area_per_sheet
+    def get_sheet_area(self, product: Product) -> float:
+        if product.size is None:
+            raise ValueError('Размер материала не задан')
+        return (product.size.length_mm / 1000) * (product.size.width_mm / 1000)
 
     def get_total_height_build(self) -> float:
-        """Расчет суммарной высоты углов здания."""
-        total_height = self.building_height_m * self.count_corner
-        logger.debug(f"Суммарная высота углов: {total_height:.2f} м")
-        return total_height
+        return self.building_height_m * self.count_corner
 
-    def get_bandaging_the_corner(self) -> float:
-        """Расчет площади перевязки углов."""
-        material = self.materials_data[0]
-        thickness_m = material['thickness'] / 1000
-        bandaging_corner_m2 = self.get_total_height_build() * thickness_m
-        logger.debug(f"Площадь перевязки углов: {bandaging_corner_m2:.3f} м²")
-        return bandaging_corner_m2
+    def get_bandaging_the_corner(self, product: Product) -> float:
+        if product.thickness is None:
+            raise ValueError('Толщина материала не задана')
+        return self.get_total_height_build() * (product.thickness.thickness_mm / 1000)
 
-    def get_sheets_needed(self) -> int:
-        """Расчет необходимого количества листов материала."""
-        area_per_sheet = self.get_sheet_area()
-        total_area_build = self.area_m2 + self.get_bandaging_the_corner()
-        sheets_needed = math.ceil(total_area_build / area_per_sheet)
-        logger.debug(
-            f"Общая площадь: {total_area_build:.2f} м², "
-            f"Необходимое количество листов: {sheets_needed}"
-        )
-        return sheets_needed
+    def calculate_layer(self, product: Product, area: float) -> Tuple[int, float]:
+        area_per_sheet = self.get_sheet_area(product)
+        sheets_needed = math.ceil(area / area_per_sheet)
+        if product.volume_m3 is None:
+            raise ValueError('Отсутствует объем материала')
+        total_volume = sheets_needed * product.volume_m3
+        return sheets_needed, round(total_volume, 3)
 
-    def get_total_volume(self) -> float:
-        """Расчет общего объема материала."""
-        sheets_needed = self.get_sheets_needed()
-        volume_per_sheet = self.materials_data[0]['volume']
-        total_volume = sheets_needed * volume_per_sheet
-        logger.debug(f"Общий объем материала: {total_volume:.3f} м³")
-        return round(total_volume, 3)
+    def get_fastener_length(self, product: Product) -> int:
+        return product.thickness.thickness_mm + 45
 
-    def get_thickness_fasteners(self) -> str:
-        """Расчет длины крепежа для фасадного анкера."""
-        material = self.materials_data[0]
-        thickness_material_mm = material['thickness']
-        thickness_fasteners = thickness_material_mm + 45
-        result = (
-            f'Фасадный анкер длиной {thickness_fasteners} мм '
-            f'для толщины МВП {thickness_material_mm} мм'
-        )
-        logger.debug(f"Расчет длины крепежа: {result}")
-        return result
-
-    def get_count_fasteners(self) -> int:
-        """Расчет количества крепежей для фасадного анкера."""
-        sheets = self.get_sheets_needed()
-        count = sheets * 5
-        logger.debug(f"Количество крепежей: {count}")
-        return count
+    def get_count_fasteners(self, sheets_needed: int, count_per_sheet: int = 1) -> int:
+        return sheets_needed * count_per_sheet
 
     def summary(self) -> dict:
-        """Сводная информация по расчету теплоизоляции."""
-        logger.info("Формирование сводной информации по расчету")
-        material = self.materials_data[0]
+        logger.info("Формирование отчета по расчету")
+
+        # Всегда рассчитываем внешний слой (основной)
+        outer_area = self.area_m2 + self.get_bandaging_the_corner(
+            self.outer_product
+        )
+        outer_sheets, outer_volume = self.calculate_layer(
+            self.outer_product, outer_area
+        )
+        outer_fasteners_count = self.get_count_fasteners(
+            outer_sheets, count_per_sheet=5
+        )
+        outer_fasteners_length = self.get_fastener_length(
+            self.outer_product
+        )
+
         result = {
-            "SKU": material["product_code"],
-            "Наименование материала": self.materials_ru_name,
-            "Площадь фасада": self.area_m2,
-            "Высота здания": self.building_height_m,
-            "Периметр": self.perimeter_m,
-            "Количесто внешних углов здания": self.count_corner,
-            "Площадь теплоизоляции": self.area_m2 + self.get_bandaging_the_corner(),
-            "Количество МВП (шт)": self.get_sheets_needed(),
-            "Объем МВП": self.get_total_volume(),
-            "Длина крепежа": self.get_thickness_fasteners(),
-            "Количество крепежа": self.get_count_fasteners(),
+            "system_type": "double" if self.is_double_layer else "single",
+            "outer_layer": {
+                "material": self.outer_material_ru_name,
+                "sheets": outer_sheets,
+                "volume": outer_volume,
+                "fasteners": {
+                    "count": outer_fasteners_count,
+                    "length": outer_fasteners_length
+                }
+            }
         }
-        logger.debug(f"Результаты расчета: {result}")
+
+        # Добавляем внутренний слой только если он есть
+        if self.is_double_layer:
+            inner_area = self.area_m2 + self.get_bandaging_the_corner(
+                self.inner_product
+            )
+            inner_sheets, inner_volume = self.calculate_layer(
+                self.inner_product, inner_area
+            )
+            inner_fasteners_count = self.get_count_fasteners(
+                inner_sheets, count_per_sheet=1
+            )
+            inner_fasteners_length = self.get_fastener_length(
+                self.inner_product
+            )
+
+            result["inner_layer"] = {
+                "material": self.inner_material_ru_name,
+                "sheets": inner_sheets,
+                "volume": inner_volume,
+                "fasteners": {
+                    "count": inner_fasteners_count,
+                    "length": inner_fasteners_length
+                }
+            }
+
         return result
