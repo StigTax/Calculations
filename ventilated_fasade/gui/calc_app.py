@@ -2,8 +2,10 @@ from reports.report_generator import ReportGenerator
 from logic.validators import InputValidator, ValidationError
 from data.materials import GetInsulationMaterials
 from logic.calculator import InsulationCalculator
+
 import tkinter as tk
 from tkinter import ttk, messagebox, Menu, filedialog
+
 import os
 import logging
 import sys
