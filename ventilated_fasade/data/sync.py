@@ -5,12 +5,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from .models import (
     Base, ConstructionType, MaterialType, Size, Thickness, Product)
-
+from config import STRICT_FIXTURE
 
 logger = logging.getLogger('insulation.sync')
 
 
 def load_fixture_data(path):
+    """Загрузка данных из фикстур."""
     logger.info(f'Загрузка даных из фикстуры: {path}')
     try:
         with open(path, 'r', encoding='utf-8') as file:
@@ -29,6 +30,7 @@ def load_fixture_data(path):
 
 
 def sync_db_with_fixture(fixture_path, db_url):
+    """Синхронизация БД с фикстурой."""
     try:
         logger.info('Синхронизация базы данных с фикстурой...')
         engine = create_engine(db_url)
@@ -53,7 +55,11 @@ def sync_db_with_fixture(fixture_path, db_url):
 
     try:
 
-        def upser(model_class, items, key='id'):
+        def upsert(model_class, items, key='id'):
+            """
+            Логика обновления и добавления и удаления
+            в БД недостающих данных.
+            """
             updated, added = 0, 0
             for item in items:
                 obj = session.get(model_class, item[key])
@@ -85,7 +91,7 @@ def sync_db_with_fixture(fixture_path, db_url):
             (Thickness, 'id'),
         ]:
             logger.info(f'Обработка {model_class.__name__}...')
-            added, updated = upser(
+            added, updated = upsert(
                 model_class, data[model_class.__name__], key)
             total_added += added
             total_updated += updated
@@ -95,12 +101,12 @@ def sync_db_with_fixture(fixture_path, db_url):
 
         logger.info('Обработка продуктов...')
         existing_product = {
-            p.product_code: p for p in session.query(Product).all()}
-        fixture_codes = set()
+            p.product_name_ru: p for p in session.query(Product).all()}
+        fixture_items = set()
         product_added, product_updated = 0, 0
 
         required_keys = [
-            'product_code', 'product_name_ru', 'product_name_en',
+            'product_name_ru', 'product_name_en',
             'construction_id', 'material_type_id', 'size_id', 'thickness_id'
         ]
 
@@ -109,27 +115,23 @@ def sync_db_with_fixture(fixture_path, db_url):
             if missing:
                 logger.error(
                     f'Пропущены обязательные ключи в продукте: {missing}\n'
-                    f'Продукт: {item}'
+                    f'Продукт: {item["product_name_ru"]}'
                 )
                 continue
-            fixture_codes.add(item['product_code'])
+            fixture_items.add(item['product_name_ru'])
 
             product_data = {
-                "product_code": item["product_code"],
-                "product_name_ru": item["product_name_ru"],
-                "product_name_en": item["product_name_en"],
-                "volume_m3": safe_float(item.get("volume_m3", 0)),
-                "lambda_d": safe_float(item.get("lambda_d", 0)),
-                "lambda_a": safe_float(item.get("lambda_a", 0)),
-                "lambda_b": safe_float(item.get("lambda_b", 0)),
-                "construction_id": item.get("construction_id"),
-                "material_type_id": item.get("material_type_id"),
-                "size_id": item.get("size_id"),
-                "thickness_id": item.get("thickness_id")
+                'product_name_ru': item['product_name_ru'],
+                'product_name_en': item['product_name_en'],
+                'volume_m3': safe_float(item.get('volume_m3', 0)),
+                'construction_id': item.get('construction_id'),
+                'material_type_id': item.get('material_type_id'),
+                'size_id': item.get('size_id'),
+                'thickness_id': item.get('thickness_id')
             }
 
-            if item['product_code'] in existing_product:
-                product = existing_product[item['product_code']]
+            if item['product_name_ru'] in existing_product:
+                product = existing_product[item['product_name_ru']]
                 changed = False
                 for key, value in product_data.items():
                     if getattr(product, key) != value:
@@ -137,27 +139,29 @@ def sync_db_with_fixture(fixture_path, db_url):
                         changed = True
                 if changed:
                     logger.debug(
-                        f'Обновление продукта: {item["product_code"]}'
+                        f'Обновление продукта: {item["product_name_ru"]}'
                     )
                     product_updated += 1
             else:
                 logger.debug(
-                    f'Добавление продукта: {item["product_code"]}'
+                    f'Добавление продукта: {item["product_name_ru"]}'
                 )
                 session.add(Product(**product_data))
                 product_added += 1
 
-        to_delete = set(existing_product.keys()) - fixture_codes
-        for code in to_delete:
-            logger.debug(f'Удаление продукта: {code}')
-            session.delete(existing_product[code])
+        to_delete = set(existing_product.keys()) - fixture_items
+        for name in to_delete:
+            logger.debug(f'Удаление продукта: {name}')
+            session.delete(existing_product[name])
 
         session.commit()
 
         logger.info(
-            f'✓ MaterialTypes, ConstructionTypes, Sizes & Thicknesses: +{total_added}, ~{total_updated}')
+            f'✓ MaterialTypes, ConstructionTypes, Sizes & Thicknesses: '
+            f'+{total_added}, ~{total_updated}')
         logger.info(
-            f'✓ Products: +{product_added}, ~{product_updated}, -{len(to_delete)}')
+            f'✓ Products: +{product_added}, ~{product_updated}, '
+            f' -{len(to_delete)}')
         logger.info('Синхронизация завершена успешно.')
 
     except SQLAlchemyError as e:

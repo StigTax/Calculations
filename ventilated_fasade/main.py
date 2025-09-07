@@ -1,36 +1,60 @@
 from gui.calc_app import InsulationCalculatorApp
-from data.sync import sync_db_with_fixture
+from config import DB_URL, LOG_DIR, REQUIRED_DEPENDENCIES
 import sys
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import tkinter as tk
 from tkinter import messagebox
+from sqlalchemy import create_engine
+from data.models import Base as Material
+from data.models_calc import Base as Personal
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-REQUIRED_DEPENDENCIES = [
-    'openpyxl',
-    'reportlab',
-    'sqlalchemy'
-]
-FIXTURE_PATH = 'assets/material.json'  # путь к JSON с данными фикстуры
-DB_URL = 'sqlite:///insulation.db'
-LOG_DIR = 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
 
 log_filename = os.path.join(LOG_DIR, 'insulation_calculator.log')
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s [%(funcName)s]: %(message)s',
-    handlers=[
-        logging.FileHandler(log_filename, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
+for h in logging.root.handlers[:]:
+    logging.root.removeHandler(h)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+console_fmt = logging.Formatter(
+    fmt="%(asctime)s %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S"
+)
+file_fmt = logging.Formatter(
+    fmt=(
+        "%(asctime)s %(levelname)s [%(name)s:%(funcName)s] %(message)s"
+    ), datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-logger = logging.getLogger(__name__)
+# Консоль: только INFO+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(console_fmt)
+
+# Файл: DEBUG+ с ротацией
+file_handler = RotatingFileHandler(
+    log_filename, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(file_fmt)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+# Подкручиваем шумные библиотеки
+logging.getLogger("PIL").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
+app_logger = logging.getLogger(__name__)
 
 
 def check_dependencies():
@@ -64,7 +88,9 @@ def initialize_database():
     """Инициализирует базу данных."""
     logger.info('Начата инициализация базы данных...')
     try:
-        sync_db_with_fixture(FIXTURE_PATH, DB_URL)
+        engine = create_engine(DB_URL)
+        Material.metadata.create_all(engine)
+        Personal.metadata.create_all(engine)
         logger.info('База данных успешно инициализирована.')
         return True
     except Exception as e:

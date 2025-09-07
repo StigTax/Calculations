@@ -28,17 +28,17 @@ class ReportGenerator:
         self.calculator = calculator
         self.summary = calculator.summary()
         logger.debug(
-            "ReportGenerator инициализирован с данными: %s",
+            'ReportGenerator инициализирован с данными: %s',
             self.summary
         )
 
     def generate_excel_report(self, filename: str):
         """Генерирует Excel-отчет с результатами расчета теплоизоляции."""
-        logger.info("Начата генерация Excel-отчета: %s", filename)
+        logger.info('Начата генерация Excel-отчета: %s', filename)
         try:
             wb = Workbook()
             ws = wb.active
-            ws.title = "Расчет теплоизоляции"
+            ws.title = 'Расчет теплоизоляции'
 
             header_font = Font(name='Arial', size=14, bold=True)
             title_font = Font(name='Arial', size=16, bold=True)
@@ -106,10 +106,10 @@ class ReportGenerator:
             row += 1
 
             for label, value in [
-                ('Площадь здания:', f"{self.summary['Площадь фасада']} м²"),
-                ('Высота здания:', f"{self.summary['Высота здания']} м"),
-                ('Количество углов:', f"{self.summary['Количесто внешних углов здания']} шт."),
-                ('Периметр здания:', f"{self.summary['Периметр']} м")
+                ('Площадь здания:', f'{self.summary["Площадь фасада"]} м²'),
+                ('Высота здания:', f'{self.summary["Высота здания"]} м'),
+                ('Количество углов:', f'{self.summary["Количесто внешних углов здания"]} шт.'),
+                ('Периметр здания:', f'{self.summary["Периметр"]} м')
             ]:
                 ws[f'A{row}'] = label
                 ws[f'B{row}'] = value
@@ -134,19 +134,19 @@ class ReportGenerator:
             for label, value in [
                 (
                     'Общая площадь утепления:',
-                    f"{self.summary['Площадь теплоизоляции']} м²"
+                    f'{self.summary["Площадь теплоизоляции"]} м²'
                 ),
                 (
                     'Количество листов:',
-                    f"{self.summary['Количество МВП (шт)']} шт."
+                    f'{self.summary["Количество МВП (шт)"]} шт.'
                 ),
                 (
                     'Общий объем материала:',
-                    f"{self.summary['Объем МВП']} м³"
+                    f'{self.summary["Объем МВП"]} м³'
                 ),
                 (
                     'Количество крепежа:',
-                    f"{self.summary['Количество крепежа']} шт."
+                    f'{self.summary["Количество крепежа"]} шт.'
                 )
             ]:
                 ws[f'A{row}'] = label
@@ -191,21 +191,21 @@ class ReportGenerator:
             folder = os.path.dirname(abs_path)
             if folder and not os.path.exists(folder):
                 os.makedirs(folder, exist_ok=True)
-                logger.info(f"Создана директория: {folder}")
+                logger.info(f'Создана директория: {folder}')
 
             logger.info(
-                f"Пытаемся сохранить файл по абсолютному пути: {abs_path}"
+                f'Пытаемся сохранить файл по абсолютному пути: {abs_path}'
             )
             wb.save(abs_path)
-            logger.info("Excel-отчет успешно сохранен: %s", abs_path)
+            logger.info('Excel-отчет успешно сохранен: %s', abs_path)
 
         except Exception as e:
-            logger.exception("Ошибка при генерации Excel-отчета: %s", e)
+            logger.exception('Ошибка при генерации Excel-отчета: %s', e)
             raise
 
     def generate_pdf_report(self, filename: str):
         """Генерирует PDF-отчет с результатами расчета теплоизоляции."""
-        logger.info("Начата генерация PDF-отчета: %s", filename)
+        logger.info('Начата генерация PDF-отчета: %s', filename)
         try:
             pdfmetrics.registerFont(TTFont('Arial', 'Arial.ttf'))
 
@@ -236,11 +236,11 @@ class ReportGenerator:
             story = []
 
             story.append(Paragraph(
-                "РАСЧЕТ ТЕПЛОИЗОЛЯЦИИ ДЛЯ НФС",
+                'РАСЧЕТ ТЕПЛОИЗОЛЯЦИИ ДЛЯ НФС',
                 title_style
             ))
             story.append(Paragraph(
-                f"Дата создания: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+                f'Дата создания: {datetime.now().strftime("%d.%m.%Y %H:%M")}',
                 normal_style
             ))
             story.append(Spacer(1, 20))
@@ -261,46 +261,45 @@ class ReportGenerator:
                 story.append(table)
                 story.append(Spacer(1, 20))
 
-            add_table("ИНФОРМАЦИЯ О МАТЕРИАЛЕ", [
-                ['Код материала:', self.summary['SKU']],
+            add_table('ИНФОРМАЦИЯ О МАТЕРИАЛЕ', [
                 ['Наименование:', self.summary['Наименование материала']]
             ])
 
-            add_table("ИСХОДНЫЕ ДАННЫЕ", [
-                ['Площадь здания:', f"{self.summary['Площадь фасада']} м²"],
-                ['Высота здания:', f"{self.summary['Высота здания']} м"],
-                ['Количество углов:', f"{self.summary['Количесто внешних углов здания']} шт."],
-                ['Периметр здания:', f"{self.summary['Периметр']} м"]
+            add_table('ИСХОДНЫЕ ДАННЫЕ', [
+                ['Площадь здания:', f'{self.summary["Площадь фасада"]} м²'],
+                ['Высота здания:', f'{self.summary["Высота здания"]} м'],
+                ['Количество углов:', f'{self.summary["Количесто внешних углов здания"]} шт.'],
+                ['Периметр здания:', f'{self.summary["Периметр"]} м']
             ])
 
-            add_table("РЕЗУЛЬТАТЫ РАСЧЕТА", [
+            add_table('РЕЗУЛЬТАТЫ РАСЧЕТА', [
                 [
                     'Общая площадь утепления:',
-                    f"{self.summary['Площадь теплоизоляции']} м²"
+                    f'{self.summary["Площадь теплоизоляции"]} м²'
                 ],
                 [
                     'Количество листов:',
-                    f"{self.summary['Количество МВП (шт)']} шт."
+                    f'{self.summary["Количество МВП (шт)"]} шт.'
                 ],
                 [
                     'Общий объем материала:',
-                    f"{self.summary['Объем МВП']} м³"
+                    f'{self.summary["Объем МВП"]} м³'
                 ],
                 [
                     'Количество крепежа:',
-                    f"{self.summary['Количество крепежа']} шт."
+                    f'{self.summary["Количество крепежа"]} шт.'
                 ]
             ])
 
-            story.append(Paragraph("РЕКОМЕНДАЦИИ ПО КРЕПЕЖУ", heading_style))
+            story.append(Paragraph('РЕКОМЕНДАЦИИ ПО КРЕПЕЖУ', heading_style))
             story.append(Paragraph(
                 self.summary['Длина крепежа'],
                 normal_style
             ))
 
             doc.build(story)
-            logger.info("PDF-отчет успешно сохранен: %s", filename)
+            logger.info('PDF-отчет успешно сохранен: %s', filename)
 
         except Exception as e:
-            logger.exception("Ошибка при генерации PDF-отчета: %s", e)
+            logger.exception('Ошибка при генерации PDF-отчета: %s', e)
             raise
